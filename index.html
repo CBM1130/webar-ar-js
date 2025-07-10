@@ -2,80 +2,67 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WebXR Plane Tracking Demo</title>
-  <style>
-    body { margin: 0; overflow: hidden; }
-    #info {
-      position: absolute;
-      top: 10px; left: 50%;
-      transform: translateX(-50%);
-      color: white; background: rgba(0,0,0,0.5);
-      padding: 5px 10px; border-radius: 4px;
-      font-family: sans-serif; z-index: 1;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WebXR Plane-Tracking AR</title>
+  <style>body{margin:0;overflow:hidden;}#info{position:absolute;top:10px;left:50%;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,0.5);padding:5px 10px;border-radius:4px;font-family:sans-serif;z-index:1;}</style>
 </head>
 <body>
   <div id="info">“AR 시작” 버튼을 눌러 평면을 선택하세요</div>
-
-  <!-- 여기에 모든 모듈 코드를 inline으로 넣습니다 -->
   <script type="module">
-    import * as THREE     from 'https://cdn.jsdelivr.net/npm/three@0.178.0/build/three.module.js';
-    import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/loaders/GLTFLoader.js';
-    import { ARButton }   from 'https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/webxr/ARButton.js';
+    import * as THREE        from 'https://cdn.jsdelivr.net/npm/three@0.178.0/build/three.module.js';
+    import { GLTFLoader }    from 'https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/loaders/GLTFLoader.js';
+    import { ARButton }      from 'https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/webxr/ARButton.js';
 
-    let camera, scene, renderer;
-    let reticle, model, hitTestSource;
+    let camera, scene, renderer, reticle, model, hitTestSource;
 
     init();
     animate();
 
     async function init() {
       const info = document.getElementById('info');
-
-      scene  = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
-      renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 20);
+      renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+      renderer.setSize(innerWidth, innerHeight);
       renderer.xr.enabled = true;
       document.body.appendChild(renderer.domElement);
 
-      // WebXR 지원 체크
+      // WebXR AR 지원 체크
       if (!navigator.xr || !(await navigator.xr.isSessionSupported('immersive-ar'))) {
-        info.textContent = '죄송합니다. AR을 지원하지 않는 기기입니다.';
+        info.textContent = '죄송합니다. 이 기기는 AR을 지원하지 않습니다.';
         return;
       }
+
       // AR 버튼
-      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures:['hit-test'] }));
-      info.style.display = 'none';
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+      info.style.display = 'none'; // 버튼 보이면 안내 숨김
 
       scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1));
 
-      // Reticle
+      // Reticle 생성
       {
         const geo = new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI/2);
-        const mat = new THREE.MeshBasicMaterial({ color:0x00ff00 });
+        const mat = new THREE.MeshBasicMaterial({color: 0x00ff00});
         reticle = new THREE.Mesh(geo, mat);
         reticle.matrixAutoUpdate = false;
         reticle.visible = false;
         scene.add(reticle);
       }
 
-      // 모델 로드
+      // 모델 로드 (초기 숨김)
       try {
         const gltf = await new GLTFLoader().loadAsync('./model/table_set.glb');
         model = gltf.scene;
         model.visible = false;
-        model.scale.set(0.3,0.3,0.3);
+        model.scale.set(0.3, 0.3, 0.3);
         scene.add(model);
       } catch(e) {
         console.error('모델 로드 실패', e);
         info.style.display = 'block';
-        info.textContent = '3D 모델 로드에 실패했습니다.';
+        info.textContent = '3D 모델을 불러오는 데 실패했습니다.';
       }
 
-      // 터치 이벤트
+      // 화면 터치 시 모델 배치
       const controller = renderer.xr.getController(0);
       controller.addEventListener('select', () => {
         if (reticle.visible && model) {
@@ -90,9 +77,8 @@
     }
 
     function onWindowResize() {
-      camera.aspect = window.innerWidth/window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
     }
 
     function animate() {
@@ -103,20 +89,20 @@
       if (frame && !hitTestSource) {
         const session = renderer.xr.getSession();
         session.requestReferenceSpace('viewer')
-          .then(space=>session.requestHitTestSource({ space }))
-          .then(source=>hitTestSource=source)
-          .catch(err=>console.error(err));
+          .then(space => session.requestHitTestSource({ space }))
+          .then(source => hitTestSource = source)
+          .catch(console.error); 
       }
       if (frame && hitTestSource) {
         const ref = renderer.xr.getReferenceSpace();
         const hits = frame.getHitTestResults(hitTestSource);
-        if (hits.length>0) {
+        if (hits.length) {
           const pose = hits[0].getPose(ref);
           reticle.visible = true;
           reticle.matrix.fromArray(pose.transform.matrix);
         } else reticle.visible = false;
       }
-      renderer.render(scene,camera);
+      renderer.render(scene, camera);
     }
   </script>
 </body>
